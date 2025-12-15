@@ -6,6 +6,7 @@ import de.seuhd.campuscoffee.domain.exceptions.ValidationException;
 import de.seuhd.campuscoffee.domain.model.objects.Pos;
 import de.seuhd.campuscoffee.domain.model.objects.Review;
 import de.seuhd.campuscoffee.domain.model.objects.User;
+import de.seuhd.campuscoffee.domain.ports.data.CrudDataService;
 import de.seuhd.campuscoffee.domain.ports.data.PosDataService;
 import de.seuhd.campuscoffee.domain.ports.data.ReviewDataService;
 import de.seuhd.campuscoffee.domain.ports.data.UserDataService;
@@ -25,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
@@ -172,5 +174,46 @@ public class ReviewServiceTest {
         
         // then
         assertTrue(updatedReview.approved());
+    }
+
+    @Test
+    void testReviewDataService(){
+        //given
+        ReviewServiceImpl newReviewService = new ReviewServiceImpl(
+            reviewDataService, userDataService, posDataService, approvalConfiguration);
+
+        //when
+        CrudDataService<Review, Long> returnedReviewDataService = newReviewService.dataService();
+
+        CrudDataService<Review, Long> internalReviewDataService = reviewDataService;
+
+        //then
+        assertThat(returnedReviewDataService).isEqualTo(internalReviewDataService);
+    }
+
+    @Test
+    void testApproveQuorumNotYetReached(){
+        // given
+        Review review = TestFixtures.getReviewFixtures().getFirst().toBuilder()
+                .approvalCount(1)
+                .approved(false)
+                .build();
+        User user = TestFixtures.getUserFixtures().getLast();
+        assertNotNull(user.getId());
+        when(userDataService.getById(user.getId())).thenReturn(user);
+        assertNotNull(review.getId());
+        when(reviewDataService.getById(review.getId())).thenReturn(review);
+        when(reviewDataService.upsert(any(Review.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // when
+        Review updatedReview = reviewService.approve(review, user.getId());
+
+        // then
+        verify(userDataService).getById(user.getId());
+        verify(reviewDataService).getById(review.getId());
+        verify(reviewDataService).upsert(any(Review.class));
+        assertThat(updatedReview.approvalCount()).isEqualTo(review.approvalCount() + 1);
+        assertThat(updatedReview.approved()).isFalse();
+
     }
 }
