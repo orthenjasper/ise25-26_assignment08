@@ -7,13 +7,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import de.seuhd.campuscoffee.domain.exceptions.DuplicationException;
-import de.seuhd.campuscoffee.domain.exceptions.NotFoundException;
 import de.seuhd.campuscoffee.domain.model.objects.User;
-import de.seuhd.campuscoffee.domain.ports.data.CrudDataService;
 import de.seuhd.campuscoffee.domain.ports.data.UserDataService;
 import de.seuhd.campuscoffee.domain.tests.TestFixtures;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 /**
@@ -32,8 +31,11 @@ public class CrudServiceTest {
         //given
         CrudServiceImpl<User, Long> crudService = userService;
 
-        //when, then
+        //when
         crudService.clear();
+
+        //then
+        assertTrue(crudService.dataService().getAll().isEmpty());
     }
 
     @Test
@@ -41,7 +43,7 @@ public class CrudServiceTest {
         //given
         CrudServiceImpl<User, Long> crudService = userService;
         User user = TestFixtures.getUserFixtures().getFirst();
-        
+
         when(userDataService.upsert(user)).thenThrow(new DuplicationException(User.class, "", ""));
 
         //when, then
@@ -49,6 +51,4 @@ public class CrudServiceTest {
         verify(userDataService).getById(user.id());
 
     }
-
-
 }
